@@ -1,0 +1,110 @@
+- name: Deploy Nodejs App
+  hosts: webservers
+  become: yes
+
+
+  vars:
+    github_repo: https://github.com/rat9615/simple-nodejs-app.git
+    #github_repo: https://github.com/ksajeb/JOB-PORTAL.git
+    app_dir: /node_app
+    nodejs_version: "22"
+    #nodejs_setup_url: "https://deb.nodesource.com/setup_{{ nodejs_version }}.x"
+    
+
+  tasks: 
+    - name: Installing Git And Curl
+      apt:
+        name:
+          - git
+          - curl
+          - ca-certificates
+        state: present
+        update_cache: yes
+        
+
+    - name: Configure Node.js repository
+      shell: |
+        curl -fsSL https://deb.nodesource.com/setup_{{ nodejs_version }}.x -o /tmp/nodesource_setup.sh
+        bash /tmp/nodesource_setup.sh
+      args:
+        creates: /etc/apt/sources.list.d/nodesource.list    
+
+
+    - name: Install Node.js and npm
+      apt:
+        name: nodejs
+        state: present
+        update_cache: yes    
+
+    - name: Create application directory
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        mode: "0755"
+
+
+    - name: Clone application repository
+      git:
+        repo: "{{ github_repo }}"
+        dest: "{{ app_dir }}"
+        update: yes
+        force: yes
+
+
+    - name: Install application dependencies
+      npm:
+        path: "{{ app_dir }}"
+        state: present
+ 
+  
+    - name: Verify Node.js installation
+      command: node --version
+      register: node_version_output
+      changed_when: false
+
+    #- name: Start Node.js application
+     # shell: |
+      #  nohup npm start > /var/log/node-app.log 2>&1 &
+      #args:
+       # chdir: "{{ app_dir }}"
+        #creates: /var/log/node-app.pid
+
+    - name: Create systemd service for Node.js app
+      copy:
+        dest: /etc/systemd/system/node-app.service
+        content: |
+          [Unit]
+          Description=Node.js Application
+          After=network.target
+
+          [Service]
+          Type=simple
+          User=ubuntu
+          WorkingDirectory={{ app_dir }}
+          ExecStart=/usr/bin/npm start
+          Restart=always
+          Environment=PORT=3000
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Restart Node.js application
+
+    - name: Start and enable Node.js service
+      systemd:
+        name: node-app
+        state: started
+        enabled: yes
+        daemon_reload: yes
+
+
+    - name: Display deployment success message
+      debug:
+        msg: "SUCCESS: Node.js application deployment completed!"
+
+  handlers:
+    - name: Restart Node.js application
+      systemd:
+        name: node-app
+        state: restarted
+        daemon_reload: yes
+

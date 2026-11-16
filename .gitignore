@@ -1,0 +1,25 @@
+
+# Terraform downloaded providers and modules
+.terraform/
+
+# Terraform state files
+*.tfstate
+*.tfstate.*
+crash.log
+
+# Sensitive private keys
+*.pem
+*.key
+
+# Dynamically generated Ansible inventory
+inventory.ini
+
+# Terraform override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Local Terraform CLI configuration
+.terraformrc
+terraform.rc
